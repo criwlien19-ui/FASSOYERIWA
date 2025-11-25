@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ mode }) => {
   // Charge les variables d'environnement (y compris celles sans préfixe VITE_)
   // Cela permet à process.env.API_KEY d'être lu depuis les réglages Vercel
-  const env = loadEnv(mode, process.cwd(), '');
+  const env = loadEnv(mode, '.', '');
 
   return {
     plugins: [react()],

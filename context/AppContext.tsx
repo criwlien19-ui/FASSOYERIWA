@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { AppState, AppContextType, Transaction, TransactionType, PaymentMethod, Client, Employee, Product, AppNotification, StockMovement } from '../types';
 import { INITIAL_STATE } from '../constants';
@@ -219,11 +220,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 ? cleanInput 
                 : `${cleanInput.replace(/\s+/g, '').toLowerCase()}@fasso-app.com`;
 
-            const { error } = await supabase.auth.signInWithPassword({
+            const { data: authData, error } = await supabase.auth.signInWithPassword({
                 email: authEmail,
                 password: pass
             });
-            if (!error) return true;
+            
+            if (!error && authData.session) {
+                // CRITIQUE: On récupère immédiatement le profil employé AVANT de renvoyer true
+                // Cela évite la "race condition" où le login réussit mais le currentUser est encore null
+                const { data: empData } = await supabase
+                    .from('employees')
+                    .select('*')
+                    .eq('auth_user_id', authData.session.user.id)
+                    .single();
+
+                if (empData) {
+                    const userProfile: Employee = {
+                         id: empData.id, 
+                         name: empData.name, 
+                         role: empData.role, 
+                         username: empData.username,
+                         salary: empData.salary, 
+                         advancesTaken: empData.advances_taken, 
+                         isPaid: empData.is_paid,
+                         isPresent: empData.is_present, 
+                         photoUrl: empData.photo_url, 
+                         accessRights: empData.access_rights || []
+                    };
+                    setState(prev => ({ ...prev, currentUser: userProfile }));
+                    return true;
+                }
+            }
         } catch (e) {
             console.warn("Supabase Login failed, trying Local Mode", e);
         }
