@@ -1,0 +1,7 @@
+{
+  "name": "FASSO-YERIWA",
+  "description": "La gestion d'entreprise simplifiée pour l'Afrique de l'Ouest. Une solution ERP mobile-first, zéro-formation avec intégration IA pour le coaching business.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
