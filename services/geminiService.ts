@@ -1,7 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { AppState, TransactionType } from "../types";
 
-const apiKey = process.env.API_KEY || 'AIzaSyAKxaNqrCtkUCIsJ3OLhOHuq6SjoWPHZas';
+// The API key must be obtained exclusively from the environment variable process.env.API_KEY
+const apiKey = process.env.API_KEY;
 
 let ai: GoogleGenAI | null = null;
 if (apiKey) {
@@ -134,7 +135,7 @@ export const getBusinessAdvice = async (state: AppState): Promise<string> => {
     const response = await Promise.race([
         ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt }),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
-    ]) as any; // Cast as any to avoid complex typing with Promise.race
+    ]) as any;
 
     return response.text || "Analyse terminée.";
   } catch (error) {
