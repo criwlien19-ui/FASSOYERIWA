@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Employee, ModuleAccess } from '../types';
-import { Users, Shield, Plus, Edit2, Trash2, CheckCircle, Wallet, Package, ArrowLeft, Delete, Key, Download, Upload, Save, Camera, RefreshCw, CloudLightning } from 'lucide-react';
+import { Users, Shield, Plus, Edit2, Trash2, CheckCircle, Wallet, Package, ArrowLeft, Delete, Key, Download, Upload, Save, Camera, CloudLightning, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const Admin: React.FC = () => {
@@ -103,10 +104,6 @@ const Admin: React.FC = () => {
     }
   };
 
-  const generateRandomPhoto = () => {
-      setPhotoUrl(`https://picsum.photos/200/200?random=${Date.now()}`);
-  };
-
   // --- CRUD LOGIC ---
 
   const openModal = (emp?: Employee) => {
@@ -117,7 +114,7 @@ const Admin: React.FC = () => {
       setUsername(emp.username);
       setPassword(emp.password || '');
       setSalary(emp.salary.toString());
-      setPhotoUrl(emp.photoUrl || `https://picsum.photos/200/200?random=${Date.now()}`);
+      setPhotoUrl(emp.photoUrl || '');
       setRights(emp.accessRights);
     } else {
       setEditingEmp(null);
@@ -126,7 +123,7 @@ const Admin: React.FC = () => {
       setUsername('');
       setPassword('');
       setSalary('');
-      setPhotoUrl(`https://picsum.photos/200/200?random=${Date.now()}`);
+      setPhotoUrl('');
       setRights(['COMPTA']); // Default
     }
     setShowModal(true);
@@ -237,7 +234,13 @@ const Admin: React.FC = () => {
 
                     <div className="flex items-center gap-4 mb-4">
                         <div className="relative">
-                            <img src={emp.photoUrl} alt={emp.name} className="w-16 h-16 rounded-xl object-cover border-2 border-slate-100 shadow-sm" />
+                            {emp.photoUrl ? (
+                                <img src={emp.photoUrl} alt={emp.name} className="w-16 h-16 rounded-xl object-cover border-2 border-slate-100 shadow-sm" />
+                            ) : (
+                                <div className="w-16 h-16 rounded-xl bg-slate-200 flex items-center justify-center border-2 border-slate-100 shadow-sm text-slate-400">
+                                    <Users size={24} />
+                                </div>
+                            )}
                         </div>
                         <div className="flex-1">
                             <h3 className="font-bold text-lg text-slate-800 leading-tight">{emp.name}</h3>
@@ -348,8 +351,12 @@ const Admin: React.FC = () => {
                 
                 {/* PHOTO UPLOAD SECTION */}
                 <div className="flex flex-col items-center gap-3 mb-4">
-                    <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-slate-100 group">
-                        <img src={photoUrl} alt="Preview" className="w-full h-full object-cover" />
+                    <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-slate-100 group flex items-center justify-center bg-slate-100">
+                        {photoUrl ? (
+                            <img src={photoUrl} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                            <User size={40} className="text-slate-300" />
+                        )}
                         <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                             <Camera className="text-white" size={24} />
                         </div>
@@ -365,16 +372,9 @@ const Admin: React.FC = () => {
                         <button 
                             type="button" 
                             onClick={() => photoInputRef.current?.click()}
-                            className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"
+                            className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-emerald-700 shadow-sm transition-colors"
                         >
-                            <Upload size={14} /> Importer
-                        </button>
-                        <button 
-                            type="button" 
-                            onClick={generateRandomPhoto}
-                            className="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"
-                        >
-                            <RefreshCw size={14} /> Aléatoire
+                            <Upload size={14} /> Charger une photo
                         </button>
                     </div>
                 </div>

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { Search, Plus, ScanLine, AlertTriangle, Edit2, Trash2, Package, Calculator, Check, X, ClipboardList, Coins, Image as ImageIcon, RefreshCw, ShieldAlert, Star, History, ArrowUpRight, ArrowDownLeft, Upload, Calendar } from 'lucide-react';
+import { Search, Plus, ScanLine, AlertTriangle, Edit2, Trash2, Package, Calculator, Check, X, ClipboardList, Coins, Image as ImageIcon, ShieldAlert, History, ArrowUpRight, ArrowDownLeft, Upload, Calendar } from 'lucide-react';
 import { Product } from '../types';
 
 const Stock: React.FC = () => {
@@ -57,7 +57,7 @@ const Stock: React.FC = () => {
         setCategory(product.category);
         setStock(product.stockLevel.toString());
         setMinStock(product.minStockLevel.toString());
-        setImageUrl(product.imageUrl || `https://picsum.photos/200/200?random=${Date.now()}`);
+        setImageUrl(product.imageUrl || '');
     } else {
         setEditingProduct(null);
         setName('');
@@ -65,7 +65,7 @@ const Stock: React.FC = () => {
         setCategory('Divers');
         setStock('');
         setMinStock('10');
-        setImageUrl(`https://picsum.photos/200/200?random=${Date.now()}`);
+        setImageUrl('');
     }
     setShowModal(true);
   };
@@ -73,10 +73,6 @@ const Stock: React.FC = () => {
   const openHistory = (product: Product) => {
       setSelectedProductHistory(product);
       setShowHistoryModal(true);
-  };
-
-  const generateRandomImage = () => {
-      setImageUrl(`https://picsum.photos/200/200?random=${Date.now()}`);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -262,9 +258,13 @@ const Stock: React.FC = () => {
                             <div className="flex p-3 gap-3 items-center border-b border-slate-50">
                                 <div 
                                     onClick={() => openHistory(product)} 
-                                    className="h-12 w-12 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer relative group"
+                                    className="h-12 w-12 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer relative group flex items-center justify-center"
                                 >
-                                    <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                                    {product.imageUrl ? (
+                                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <Package className="text-slate-300" size={24} />
+                                    )}
                                     <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                         <History size={16} className="text-white" />
                                     </div>
@@ -406,8 +406,15 @@ const Stock: React.FC = () => {
                         
                         {/* Image Manager Section (Enhanced) */}
                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col items-center gap-3">
-                             <div className="relative w-full h-48 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden group">
-                                <img src={imageUrl} alt="Preview" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                             <div className="relative w-full h-48 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden group flex items-center justify-center">
+                                {imageUrl ? (
+                                    <img src={imageUrl} alt="Preview" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                ) : (
+                                    <div className="text-slate-300 flex flex-col items-center">
+                                        <ImageIcon size={48} />
+                                        <span className="text-xs mt-2">Aucune image</span>
+                                    </div>
+                                )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                                 {!isAdmin && (
                                     <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur text-[10px] text-slate-600 px-2 py-1 rounded-md shadow-sm border border-slate-200">
@@ -428,28 +435,10 @@ const Stock: React.FC = () => {
                                     <button 
                                         type="button" 
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="bg-slate-200 text-slate-700 p-2.5 rounded-xl hover:bg-slate-300 transition-colors shadow-sm"
+                                        className="bg-emerald-600 text-white p-3 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm flex-1 flex items-center justify-center gap-2 font-bold text-sm"
                                         title="Importer depuis le téléphone"
                                     >
-                                        <Upload size={18} />
-                                    </button>
-                                    <div className="relative flex-1">
-                                        <ImageIcon size={16} className="absolute left-3 top-3 text-slate-400" />
-                                        <input 
-                                            type="text"
-                                            value={imageUrl.length > 50 ? imageUrl.substring(0, 47) + '...' : imageUrl}
-                                            onChange={e => setImageUrl(e.target.value)}
-                                            className="w-full pl-9 pr-2 py-2.5 text-xs bg-white rounded-xl border border-slate-200 outline-none focus:border-emerald-500 shadow-sm"
-                                            placeholder="Ou coller une URL..."
-                                        />
-                                    </div>
-                                    <button 
-                                        type="button" 
-                                        onClick={generateRandomImage}
-                                        className="bg-emerald-100 text-emerald-700 p-2.5 rounded-xl hover:bg-emerald-200 transition-colors shadow-sm"
-                                        title="Image aléatoire"
-                                    >
-                                        <RefreshCw size={18} />
+                                        <Upload size={18} /> Charger une photo
                                     </button>
                                 </div>
                              ) : (
