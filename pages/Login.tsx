@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
-import { Lock, User, ArrowRight, ShieldCheck, Mail } from 'lucide-react';
+import { Lock, User, ArrowRight, ShieldCheck } from 'lucide-react';
 
 const Login: React.FC = () => {
-  const { login } = useApp();
+  const { login, currentUser } = useApp();
   const navigate = useNavigate();
   // On utilise "username" dans l'UI mais on le convertit en email fake pour Supabase
   const [username, setUsername] = useState(''); 
@@ -12,28 +12,35 @@ const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // CRITIQUE : Redirection réactive. 
+  // On attend que currentUser soit défini dans le contexte avant de rediriger.
+  // Cela corrige le bug où la redirection se faisait avant que le state global ne soit mis à jour.
+  useEffect(() => {
+    if (currentUser) {
+        navigate('/', { replace: true });
+    }
+  }, [currentUser, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+    
     setLoading(true);
     setError('');
     
-    // NETTOYAGE ROBUSTE : On enlève les espaces et on met en minuscule pour correspondre à l'enregistrement
+    // NETTOYAGE ROBUSTE
     const cleanUsername = username.trim().replace(/\s+/g, '').toLowerCase();
-    
-    // Construction de l'email technique pour Supabase
-    // Ex: si l'utilisateur tape "admin ", on envoie "admin@fasso-app.com"
     const email = cleanUsername.includes('@') ? cleanUsername : `${cleanUsername}@fasso-app.com`;
 
     try {
         const success = await login(email, password);
-        if (success) {
-            navigate('/');
-        } else {
-            setError('Connexion échouée. Vérifiez vos accès.');
+        if (!success) {
+            setError('Identifiant ou mot de passe incorrect.');
+            setLoading(false);
         }
+        // Si success == true, le useEffect ci-dessus déclenchera la redirection
     } catch (err) {
         setError('Erreur de connexion serveur.');
-    } finally {
         setLoading(false);
     }
   };
@@ -46,7 +53,6 @@ const Login: React.FC = () => {
                 <ShieldCheck size={40} className="text-emerald-600" />
             </div>
             <h1 className="text-2xl font-bold text-slate-800">FASSO-YERIWA</h1>
-            <p className="text-slate-500 text-sm mt-1">Version Cloud (Supabase)</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -60,6 +66,7 @@ const Login: React.FC = () => {
                         placeholder="Identifiant (ex: admin)"
                         className="w-full pl-12 pr-4 py-4 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-emerald-500 focus:bg-white transition-all font-medium"
                         required
+                        disabled={loading}
                     />
                 </div>
                 <div className="relative">
@@ -71,12 +78,13 @@ const Login: React.FC = () => {
                         placeholder="Mot de passe"
                         className="w-full pl-12 pr-4 py-4 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:border-emerald-500 focus:bg-white transition-all font-medium"
                         required
+                        disabled={loading}
                     />
                 </div>
             </div>
 
             {error && (
-                <div className="text-rose-500 text-sm text-center font-medium bg-rose-50 p-2 rounded-lg">
+                <div className="text-rose-500 text-sm text-center font-medium bg-rose-50 p-2 rounded-lg border border-rose-100">
                     {error}
                 </div>
             )}
@@ -84,17 +92,11 @@ const Login: React.FC = () => {
             <button 
                 type="submit" 
                 disabled={loading}
-                className="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-50"
+                className="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-70 disabled:cursor-not-allowed"
             >
                 {loading ? 'CONNEXION...' : <>CONNEXION <ArrowRight size={20} /></>}
             </button>
         </form>
-
-        <div className="mt-8 text-center border-t border-slate-100 pt-4">
-            <p className="text-xs text-slate-400">
-                Note: Demandez à l'administrateur de créer votre compte.
-            </p>
-        </div>
       </div>
     </div>
   );

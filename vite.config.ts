@@ -3,8 +3,7 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // Charge les variables d'environnement (y compris celles sans préfixe VITE_)
-  // Cela permet à process.env.API_KEY d'être lu depuis les réglages Vercel
+  // Charge les variables d'environnement
   const env = loadEnv(mode, '.', '');
 
   return {
@@ -12,10 +11,11 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
     },
-    // Définit process.env pour le navigateur
+    // Définit process.env pour le navigateur de manière sécurisée
     define: {
       'process.env.API_KEY': JSON.stringify(env.API_KEY),
-      'process.env': {} // Fallback pour éviter les crashs si d'autres vars sont accédées
+      'process.env.NODE_ENV': JSON.stringify(mode),
+      'process.env': {} // Fallback nécessaire pour certaines libs qui checkent process.env
     }
   }
 })
