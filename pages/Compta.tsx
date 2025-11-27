@@ -1,8 +1,9 @@
 
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TransactionType, PaymentMethod, Client, Transaction, TransactionItem, Product } from '../types';
-import { ArrowUpCircle, ArrowDownCircle, Banknote, Smartphone, BookOpen, User, MessageCircle, Share2, Receipt, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, Clock, CheckCircle, AlertTriangle, FileCheck, Search } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Banknote, Smartphone, BookOpen, User, MessageCircle, Share2, Receipt, ShoppingCart, Plus, Minus, Trash2, Printer, FileText, Clock, CheckCircle, AlertTriangle, FileCheck, Search, Package } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 
 const Compta: React.FC = () => {
@@ -119,7 +120,13 @@ const Compta: React.FC = () => {
           if (existing) {
               return prev.map(item => item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item);
           }
-          return [...prev, { productId: product.id, productName: product.name, quantity: 1, unitPrice: product.price }];
+          return [...prev, { 
+              productId: product.id, 
+              productName: product.name, 
+              quantity: 1, 
+              unitPrice: product.price,
+              imageUrl: product.imageUrl // Ajout de l'image
+          }];
       });
   };
 
@@ -608,7 +615,13 @@ ${isCredit ? '⚠️ Statut: EN ATTENTE' : '✅ Statut: PAYÉ'}
                                     <div className="max-h-32 overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-sm">
                                         {filteredProducts.map(p => (
                                             <div key={p.id} onClick={() => {addToCart(p); setSearchProd('');}} className="p-3 border-b border-slate-50 hover:bg-emerald-50 flex justify-between cursor-pointer">
-                                                <span className="font-bold text-sm">{p.name}</span>
+                                                <div className="flex items-center gap-2">
+                                                    {/* Mini preview in search result */}
+                                                    <div className="w-8 h-8 bg-slate-100 rounded overflow-hidden flex-shrink-0">
+                                                        {p.imageUrl ? <img src={p.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Package size={12} className="text-slate-300"/></div>}
+                                                    </div>
+                                                    <span className="font-bold text-sm">{p.name}</span>
+                                                </div>
                                                 <span className="text-emerald-600 text-sm">{p.price} F</span>
                                             </div>
                                         ))}
@@ -620,6 +633,16 @@ ${isCredit ? '⚠️ Statut: EN ATTENTE' : '✅ Statut: PAYÉ'}
                                     {cart.length === 0 && <p className="text-center text-xs text-slate-400 py-4">Panier vide</p>}
                                     {cart.map((item, idx) => (
                                         <div key={idx} className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
+                                            {/* Image Thumbnail */}
+                                            <div className="h-10 w-10 bg-slate-100 rounded-md overflow-hidden flex-shrink-0 mr-3 border border-slate-200">
+                                                {item.imageUrl ? (
+                                                    <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                                        <Package size={16} />
+                                                    </div>
+                                                )}
+                                            </div>
                                             <div className="flex-1">
                                                 <p className="text-xs font-bold text-slate-800">{item.productName}</p>
                                                 <p className="text-[10px] text-slate-400">{item.unitPrice} F/u</p>

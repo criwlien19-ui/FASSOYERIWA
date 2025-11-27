@@ -4,11 +4,51 @@ import { useApp } from '../context/AppContext';
 import { Search, Plus, ScanLine, AlertTriangle, Edit2, Trash2, Package, Calculator, Check, X, ClipboardList, Coins, Image as ImageIcon, ShieldAlert, History, ArrowUpRight, ArrowDownLeft, Upload, Calendar } from 'lucide-react';
 import { Product } from '../types';
 
+// Utilitaire de compression d'image (Max 800px, Qualité 0.7)
+const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 800;
+                const MAX_HEIGHT = 800;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                // Compression JPEG à 70%
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
+            };
+            img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+    });
+};
+
 const Stock: React.FC = () => {
   const { products, updateStock, addProduct, updateProduct, deleteProduct, currentUser, stockMovements } = useApp();
   const [filter, setFilter] = useState('');
   
-  // View Mode: 'operations' (Standard +/-), 'inventory' (Full Count), or 'history' (Global Log)
+  // View Mode
   const [viewMode, setViewMode] = useState<'operations' | 'inventory' | 'history'>('operations');
   const [inventoryCounts, setInventoryCounts] = useState<{ [key: string]: string }>({});
 
@@ -27,6 +67,7 @@ const Stock: React.FC = () => {
   const [stock, setStock] = useState('');
   const [minStock, setMinStock] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [isCompressing, setIsCompressing] = useState(false);
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -37,16 +78,14 @@ const Stock: React.FC = () => {
     p.name.toLowerCase().includes(filter.toLowerCase())
   );
 
-  // Filter for History Tab
   const filteredHistory = stockMovements
     .filter(m => 
         m.productName.toLowerCase().includes(filter.toLowerCase()) || 
         m.reason.toLowerCase().includes(filter.toLowerCase()) ||
         m.authorName.toLowerCase().includes(filter.toLowerCase())
     )
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Newest first
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  // Calculate Total Stock Value
   const totalStockValue = products.reduce((acc, p) => acc + (p.price * p.stockLevel), 0);
 
   const openModal = (product?: Product) => {
@@ -75,22 +114,19 @@ const Stock: React.FC = () => {
       setShowHistoryModal(true);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-        // Check size (limit to ~2MB to avoid localStorage quota issues)
-        if (file.size > 2000000) {
-            alert("L'image est trop lourde (> 2Mo). Choisissez une image plus petite.");
-            return;
+        setIsCompressing(true);
+        try {
+            const compressedBase64 = await compressImage(file);
+            setImageUrl(compressedBase64);
+        } catch (error) {
+            console.error("Erreur compression", error);
+            alert("Erreur lors du traitement de l'image.");
+        } finally {
+            setIsCompressing(false);
         }
-
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            if (typeof reader.result === 'string') {
-                setImageUrl(reader.result);
-            }
-        };
-        reader.readAsDataURL(file);
     }
   };
 
@@ -133,11 +169,10 @@ const Stock: React.FC = () => {
       setIsScanning(true);
       setTimeout(() => {
           setIsScanning(false);
-          alert("Bip ! Code barre simulé détecté.\n(Fonctionnalité caméra à venir dans la version Pro)");
+          alert("Bip ! Code barre simulé détecté.");
       }, 1000);
   };
 
-  // --- Inventory Logic ---
   const handleInventoryChange = (id: string, value: string) => {
       setInventoryCounts(prev => ({ ...prev, [id]: value }));
   };
@@ -148,7 +183,6 @@ const Stock: React.FC = () => {
 
       const diff = realCount - product.stockLevel;
       if (diff === 0) {
-          // Just reset input
           setInventoryCounts(prev => {
               const newState = { ...prev };
               delete newState[product.id];
@@ -159,7 +193,6 @@ const Stock: React.FC = () => {
 
       if (confirm(`Confirmer l'inventaire pour ${product.name} ?\nAncien: ${product.stockLevel}\nNouveau: ${realCount}\nÉcart: ${diff > 0 ? '+' : ''}${diff}`)) {
           updateProduct(product.id, { stockLevel: realCount });
-          // Clear input after update
           setInventoryCounts(prev => {
               const newState = { ...prev };
               delete newState[product.id];
@@ -246,7 +279,6 @@ const Stock: React.FC = () => {
                     const stockPercentage = Math.min(100, Math.max(0, (product.stockLevel / Math.max(product.minStockLevel * 2, 50)) * 100));
                     const isLow = product.stockLevel <= product.minStockLevel;
 
-                    // Inventory Calculation
                     const inputVal = inventoryCounts[product.id] ?? '';
                     const realCount = parseInt(inputVal);
                     const hasDiff = !isNaN(realCount) && realCount !== product.stockLevel;
@@ -254,7 +286,6 @@ const Stock: React.FC = () => {
 
                     return (
                         <div key={product.id} className="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-100">
-                            {/* Header Part (Common) */}
                             <div className="flex p-3 gap-3 items-center border-b border-slate-50">
                                 <div 
                                     onClick={() => openHistory(product)} 
@@ -283,10 +314,8 @@ const Stock: React.FC = () => {
                                 )}
                             </div>
 
-                            {/* Body Part (Mode Switched) */}
                             <div className="p-3">
                                 {viewMode === 'inventory' ? (
-                                    // INVENTORY MODE UI
                                     <div className="flex items-center justify-between gap-3">
                                         <div className="text-center">
                                             <span className="block text-[10px] text-slate-400 uppercase font-bold">Théorique</span>
@@ -319,7 +348,6 @@ const Stock: React.FC = () => {
                                         )}
                                     </div>
                                 ) : (
-                                    // OPERATIONS MODE UI (+/-)
                                     <div>
                                         <div className="flex justify-between text-xs text-slate-500 mb-1">
                                             <span>En stock: <strong className={isLow ? 'text-amber-600' : 'text-slate-800'}>{product.stockLevel}</strong></span>
@@ -389,7 +417,6 @@ const Stock: React.FC = () => {
         {showModal && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4 backdrop-blur-sm">
                 <div className="bg-white w-full sm:max-w-md max-h-[95vh] overflow-y-auto rounded-2xl p-6 animate-slide-up shadow-2xl no-scrollbar">
-                    {/* ... (Existing Modal Content) ... */}
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                             {editingProduct ? <Edit2 size={20} className="text-emerald-600"/> : <Plus size={20} className="text-emerald-600"/>}
@@ -407,7 +434,9 @@ const Stock: React.FC = () => {
                         {/* Image Manager Section (Enhanced) */}
                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col items-center gap-3">
                              <div className="relative w-full h-48 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden group flex items-center justify-center">
-                                {imageUrl ? (
+                                {isCompressing ? (
+                                    <div className="text-emerald-600 animate-pulse font-bold text-sm">Compression...</div>
+                                ) : imageUrl ? (
                                     <img src={imageUrl} alt="Preview" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                                 ) : (
                                     <div className="text-slate-300 flex flex-col items-center">
@@ -435,10 +464,10 @@ const Stock: React.FC = () => {
                                     <button 
                                         type="button" 
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="bg-emerald-600 text-white p-3 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm flex-1 flex items-center justify-center gap-2 font-bold text-sm"
-                                        title="Importer depuis le téléphone"
+                                        disabled={isCompressing}
+                                        className="bg-emerald-600 text-white p-3 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm flex-1 flex items-center justify-center gap-2 font-bold text-sm disabled:opacity-50"
                                     >
-                                        <Upload size={18} /> Charger une photo
+                                        <Upload size={18} /> {isCompressing ? 'Traitement...' : 'Charger une photo'}
                                     </button>
                                 </div>
                              ) : (

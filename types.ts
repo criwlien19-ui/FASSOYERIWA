@@ -42,6 +42,7 @@ export interface TransactionItem {
   productName: string;
   quantity: number;
   unitPrice: number;
+  imageUrl?: string; // Pour affichage panier
 }
 
 export interface Transaction {

@@ -30,9 +30,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // --- SUPABASE SYNC ---
 
-  // 3. Récupération des données Cloud et Fusion intelligente
-  useEffect(() => {
-    const fetchData = async () => {
+  // Fonction centrale de récupération des données
+  const refreshData = useCallback(async () => {
       // Si Supabase n'est pas configuré (URL par défaut), on reste en local sans erreur
       if (!isSupabaseConfigured) {
           console.log("Supabase non configuré : Mode Démo Locale actif.");
@@ -122,18 +121,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch (error) {
           console.warn("Erreur générale chargement Supabase:", error);
       }
-    };
+  }, []);
 
-    fetchData();
+  // 3. Initial Load & Realtime Subscriptions
+  useEffect(() => {
+    refreshData();
 
     // Listen to network status
     window.addEventListener('online', () => setIsOnline(true));
     window.addEventListener('offline', () => setIsOnline(false));
+
+    // Realtime Subscription
+    let channel: any;
+    if (isSupabaseConfigured) {
+        console.log("📡 Activation du temps réel...");
+        channel = supabase.channel('db_changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public' },
+                (payload) => {
+                    console.log('🔄 Changement détecté (DB):', payload);
+                    // On recharge tout pour être sûr d'avoir la donnée fraîche et formatée
+                    refreshData();
+                }
+            )
+            .subscribe();
+    }
+
     return () => {
         window.removeEventListener('online', () => setIsOnline(true));
         window.removeEventListener('offline', () => setIsOnline(false));
+        if (channel) supabase.removeChannel(channel);
     }
-  }, []);
+  }, [refreshData]);
 
   // Auth Listener
   useEffect(() => {
@@ -446,6 +466,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (updates.name) dbUpdates.name = updates.name;
             if (updates.price) dbUpdates.price = updates.price;
             if (updates.stockLevel) dbUpdates.stock_level = updates.stockLevel;
+            if (updates.imageUrl) dbUpdates.image_url = updates.imageUrl;
+            
             await supabase.from('products').update(dbUpdates).eq('id', id);
         } catch(e) {}
     }
@@ -497,9 +519,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               status: 'PAYE'
           });
       }
-      
-      // OPTIONNEL : On pourrait aussi ajouter une transaction "IMPAYE" pour le reste pour la traçabilité
-      // Mais dans le système actuel "Carnet de crédit" gère cela séparément.
   };
 
   // --- EMPLOYEE MANAGEMENT (ROBUSTE) ---
@@ -534,16 +553,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 finalEmail = rawUser.toLowerCase();
             } else {
                 // C'est un pseudo -> On construit un email technique @fasso-app.com
-                // On nettoie le pseudo pour enlever tout ce qui pourrait casser l'email (genre @ qui traine)
-                
-                // On garde lettres, chiffres, point, tiret, underscore
-                // On enlève les accents
                 let safeUser = rawUser.toLowerCase()
                     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
                     .split('@')[0] // Garder que la partie gauche si un @ traine (ex: 'sader@')
                     .replace(/[^a-z0-9._-]/g, "");
                 
-                // Pas de points au début/fin ou multiples
                 safeUser = safeUser.replace(/^\.+|\.+$/g, "").replace(/\.{2,}/g, ".");
                 
                 if (safeUser.length < 2) safeUser = `user${Math.floor(Math.random() * 10000)}`;
@@ -597,31 +611,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 if (typeof e === 'string') {
                     errorMsg = e;
                 } else if (typeof e === 'object') {
-                    // Supabase errors often look like { message: "...", status: 400 } or { error_description: "..." }
-                    // Sometimes nested { error: { message: "..." } } depending on library version/context
                     if (e.message) errorMsg = e.message;
                     else if (e.error_description) errorMsg = e.error_description;
-                    else if (e.msg) errorMsg = e.msg;
-                    else if (e.error && typeof e.error === 'object' && e.error.message) errorMsg = e.error.message; 
-                    else {
-                        try {
-                            const json = JSON.stringify(e);
-                            if (json !== "{}") errorMsg = json;
-                        } catch { /* ignore */ }
-                    }
                 }
             }
 
             // Messages conviviaux et nettoyage de l'erreur technique (@fasso-app.com)
             if (errorMsg.includes("@fasso-app.com")) {
-                 // On masque le domaine technique pour ne pas embrouiller l'utilisateur
                  errorMsg = errorMsg.replace("@fasso-app.com", "");
             }
 
             if (errorMsg.includes("already registered") || errorMsg.includes("unique constraint")) {
                  errorMsg = `L'identifiant "${empData.username}" est déjà pris. Essayez un autre nom.`;
-            } else if (errorMsg.toLowerCase().includes("invalid") && errorMsg.toLowerCase().includes("email")) {
-                 errorMsg = `Le format de l'identifiant est invalide. Utilisez des lettres simples sans caractères spéciaux.`;
             } else if (errorMsg.includes("Password should be at least")) {
                  errorMsg = "Le mot de passe doit faire 6 caractères minimum.";
             }
@@ -639,6 +640,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             if (updates.name) dbUpdates.name = updates.name;
             if (updates.salary) dbUpdates.salary = updates.salary;
             if (updates.accessRights) dbUpdates.access_rights = updates.accessRights;
+            if (updates.photoUrl) dbUpdates.photo_url = updates.photoUrl;
+            
             await supabase.from('employees').update(dbUpdates).eq('id', id);
         } catch(e) {}
       }

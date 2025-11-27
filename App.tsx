@@ -1,14 +1,24 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import Layout from './components/Layout';
-import Dashboard from './pages/Dashboard';
-import Compta from './pages/Compta';
-import Stock from './pages/Stock';
-import RH from './pages/RH';
-import Admin from './pages/Admin';
-import Login from './pages/Login';
 import { ModuleAccess } from './types';
+import { Loader2 } from 'lucide-react';
+
+// Lazy Loading des pages pour optimiser le bundle initial
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Compta = lazy(() => import('./pages/Compta'));
+const Stock = lazy(() => import('./pages/Stock'));
+const RH = lazy(() => import('./pages/RH'));
+const Admin = lazy(() => import('./pages/Admin'));
+const Login = lazy(() => import('./pages/Login'));
+
+// Composant de chargement pendant le lazy loading
+const PageLoader = () => (
+  <div className="flex h-screen w-full items-center justify-center bg-slate-50 text-emerald-600">
+    <Loader2 className="animate-spin" size={48} />
+  </div>
+);
 
 // Helper component to check authentication
 const RequireAuth = () => {
@@ -23,7 +33,6 @@ const RequireAuth = () => {
 const RequirePermission = ({ module }: { module: ModuleAccess }) => {
   const { currentUser } = useApp();
   
-  // Si pas connecté, auth gèrera. Si pas le droit, retour accueil.
   if (!currentUser || !currentUser.accessRights.includes(module)) {
     return <Navigate to="/" replace />;
   }
@@ -32,36 +41,35 @@ const RequirePermission = ({ module }: { module: ModuleAccess }) => {
 
 const AppRoutes = () => {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      
-      <Route element={<RequireAuth />}>
-        <Route path="/" element={<Layout />}>
-          {/* Dashboard accessible à tous les connectés */}
-          <Route index element={<Dashboard />} />
-          
-          {/* Routes protégées par module */}
-          <Route element={<RequirePermission module="COMPTA" />}>
-            <Route path="compta" element={<Compta />} />
-          </Route>
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        
+        <Route element={<RequireAuth />}>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Dashboard />} />
+            
+            <Route element={<RequirePermission module="COMPTA" />}>
+              <Route path="compta" element={<Compta />} />
+            </Route>
 
-          <Route element={<RequirePermission module="STOCK" />}>
-            <Route path="stock" element={<Stock />} />
-          </Route>
+            <Route element={<RequirePermission module="STOCK" />}>
+              <Route path="stock" element={<Stock />} />
+            </Route>
 
-          <Route element={<RequirePermission module="RH" />}>
-            <Route path="rh" element={<RH />} />
-          </Route>
+            <Route element={<RequirePermission module="RH" />}>
+              <Route path="rh" element={<RH />} />
+            </Route>
 
-          <Route element={<RequirePermission module="ADMIN" />}>
-            <Route path="admin" element={<Admin />} />
+            <Route element={<RequirePermission module="ADMIN" />}>
+              <Route path="admin" element={<Admin />} />
+            </Route>
           </Route>
         </Route>
-      </Route>
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
 

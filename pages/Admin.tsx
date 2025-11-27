@@ -1,8 +1,48 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Employee, ModuleAccess } from '../types';
 import { Users, Shield, Plus, Edit2, Trash2, CheckCircle, Wallet, Package, ArrowLeft, Delete, Key, Download, Upload, Save, Camera, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+
+// Utility pour compresser (dupliqué pour isolation simple ou à extraire dans un utils file)
+const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 400; // Plus petit pour les profils
+                const MAX_HEIGHT = 400;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.6));
+            };
+            img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+    });
+};
 
 const Admin: React.FC = () => {
   const { employees, addEmployee, updateEmployee, deleteEmployee, currentUser, syncToCloud } = useApp();
@@ -30,6 +70,7 @@ const Admin: React.FC = () => {
   const [salary, setSalary] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
   const [rights, setRights] = useState<ModuleAccess[]>([]);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   // --- BACKUP LOGIC ---
   const handleExportData = () => {
@@ -86,20 +127,18 @@ const Admin: React.FC = () => {
   };
 
   // --- PHOTO UPLOAD LOGIC ---
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-        if (file.size > 2000000) {
-            alert("L'image est trop lourde (> 2Mo).");
-            return;
+        setIsCompressing(true);
+        try {
+            const compressed = await compressImage(file);
+            setPhotoUrl(compressed);
+        } catch (error) {
+            alert("Erreur lors du traitement de la photo.");
+        } finally {
+            setIsCompressing(false);
         }
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            if (typeof reader.result === 'string') {
-                setPhotoUrl(reader.result);
-            }
-        };
-        reader.readAsDataURL(file);
     }
   };
 
@@ -351,7 +390,9 @@ const Admin: React.FC = () => {
                 {/* PHOTO UPLOAD SECTION */}
                 <div className="flex flex-col items-center gap-3 mb-4">
                     <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-slate-100 group flex items-center justify-center bg-slate-100">
-                        {photoUrl ? (
+                        {isCompressing ? (
+                            <div className="text-xs text-emerald-600 animate-pulse font-bold">...</div>
+                        ) : photoUrl ? (
                             <img src={photoUrl} alt="Preview" className="w-full h-full object-cover" />
                         ) : (
                             <User size={40} className="text-slate-300" />
@@ -371,9 +412,10 @@ const Admin: React.FC = () => {
                         <button 
                             type="button" 
                             onClick={() => photoInputRef.current?.click()}
-                            className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-emerald-700 shadow-sm transition-colors"
+                            disabled={isCompressing}
+                            className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-emerald-700 shadow-sm transition-colors disabled:opacity-50"
                         >
-                            <Upload size={14} /> Charger une photo
+                            <Upload size={14} /> {isCompressing ? '...' : 'Charger photo'}
                         </button>
                     </div>
                 </div>
