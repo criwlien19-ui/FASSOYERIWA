@@ -1,9 +1,7 @@
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Employee, ModuleAccess } from '../types';
-import { Users, Shield, Plus, Edit2, Trash2, CheckCircle, Wallet, Package, ArrowLeft, Delete, Key, Download, Upload, Save, Camera, CloudLightning, User, CloudUpload } from 'lucide-react';
+import { Users, Shield, Plus, Edit2, Trash2, CheckCircle, Wallet, Package, ArrowLeft, Delete, Key, Download, Upload, Save, Camera, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const Admin: React.FC = () => {
@@ -326,7 +324,7 @@ const Admin: React.FC = () => {
                     onClick={handleCloudSave}
                     className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all active:scale-95"
                 >
-                    <CloudUpload size={20} />
+                    <Upload size={20} />
                     Synchroniser tout vers le Cloud
                 </button>
             </div>
