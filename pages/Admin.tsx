@@ -1,12 +1,13 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Employee, ModuleAccess } from '../types';
-import { Users, Shield, Plus, Edit2, Trash2, CheckCircle, Wallet, Package, ArrowLeft, Delete, Key, Download, Upload, Save, Camera, CloudLightning, User } from 'lucide-react';
+import { Users, Shield, Plus, Edit2, Trash2, CheckCircle, Wallet, Package, ArrowLeft, Delete, Key, Download, Upload, Save, Camera, CloudLightning, User, CloudUpload } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const Admin: React.FC = () => {
-  const { employees, addEmployee, updateEmployee, deleteEmployee, currentUser, seedDatabase } = useApp();
+  const { employees, addEmployee, updateEmployee, deleteEmployee, currentUser, syncToCloud } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -52,10 +53,10 @@ const Admin: React.FC = () => {
       fileInputRef.current?.click();
   };
   
-  const handleSeedData = async () => {
-      if(confirm("Cela va injecter les données de démonstration (Produits, Clients) dans la base de données Cloud si elle est vide. Continuer ?")) {
-          if (seedDatabase) {
-              await seedDatabase();
+  const handleCloudSave = async () => {
+      if(confirm("Cela va sauvegarder toutes vos données locales (Produits, Clients, Transactions) vers la base de données Cloud sécurisée. Continuer ?")) {
+          if (syncToCloud) {
+              await syncToCloud();
           }
       }
   };
@@ -320,13 +321,13 @@ const Admin: React.FC = () => {
                     />
                 </div>
                 
-                {/* Cloud Seed Button */}
+                {/* Cloud Sync Button */}
                 <button 
-                    onClick={handleSeedData}
-                    className="w-full py-3 bg-blue-50 border border-blue-100 text-blue-700 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-100 transition-colors"
+                    onClick={handleCloudSave}
+                    className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all active:scale-95"
                 >
-                    <CloudLightning size={18} />
-                    Initialiser Données Démo (Cloud)
+                    <CloudUpload size={20} />
+                    Synchroniser tout vers le Cloud
                 </button>
             </div>
         </section>

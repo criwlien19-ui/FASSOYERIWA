@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { AppState, AppContextType, Transaction, TransactionType, PaymentMethod, Client, Employee, Product, AppNotification, StockMovement } from '../types';
 import { INITIAL_STATE } from '../constants';
@@ -652,44 +651,74 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
   };
   
-  // SEED DATA (ROBUSTE)
-  const seedDatabase = async () => {
+  // SYNC TO CLOUD (anciennement Seed)
+  const syncToCloud = async () => {
       if (!isSupabaseConfigured) return;
       try {
-          console.log("🚀 Injection des données de démo...");
+          console.log("🚀 Sauvegarde vers le Cloud...");
+          const isUUID = (str: string) => str && str.length > 20;
+
+          // Products
+          const productsPayload = state.products.map(p => ({
+              ...(isUUID(p.id) ? { id: p.id } : {}),
+              name: p.name,
+              category: p.category,
+              price: p.price,
+              stock_level: p.stockLevel,
+              min_stock_level: p.minStockLevel,
+              image_url: p.imageUrl
+          }));
+          // Upsert based on name might handle duplicates if constraint exists, otherwise duplicates possible
+          await supabase.from('products').upsert(productsPayload, { onConflict: 'name' });
+
+          // Clients
+          const clientsPayload = state.clients.map(c => ({
+              ...(isUUID(c.id) ? { id: c.id } : {}),
+              name: c.name,
+              phone: c.phone,
+              total_debt: c.totalDebt
+          }));
+          await supabase.from('clients').upsert(clientsPayload, { onConflict: 'name' });
           
-          // On ne vérifie pas si vide, on tente d'insérer.
-          const prods = INITIAL_STATE.products.map(p => ({
-                 name: p.name, category: p.category, price: p.price,
-                 stock_level: p.stockLevel, min_stock_level: p.minStockLevel, image_url: p.imageUrl
+          // Transactions (Seulement celles qui ne sont pas synchro)
+          const unsyncedTxs = state.transactions.filter(t => !t.isSynced);
+          const txPayload = unsyncedTxs.map(t => ({
+              // No ID, let DB generate
+              type: t.type,
+              amount: t.amount,
+              description: t.description,
+              method: t.method,
+              status: t.status,
+              date: t.date,
+              related_client_id: isUUID(t.relatedClientId || '') ? t.relatedClientId : null,
+              related_employee_id: isUUID(t.relatedEmployeeId || '') ? t.relatedEmployeeId : null
           }));
-          const { error: pError } = await supabase.from('products').insert(prods);
-          if (pError) throw pError;
+          
+          if(txPayload.length > 0) {
+               const { error } = await supabase.from('transactions').insert(txPayload);
+               if (!error) {
+                    // MISE A JOUR ETAT LOCAL : Tout est synchro
+                    setState(prev => ({
+                        ...prev,
+                        transactions: prev.transactions.map(t => ({...t, isSynced: true}))
+                    }));
+               } else {
+                   console.error("Erreur sync tx", error);
+                   throw error;
+               }
+          }
 
-          const cls = INITIAL_STATE.clients.map(c => ({
-                 name: c.name, phone: c.phone, total_debt: c.totalDebt
-          }));
-          const { error: cError } = await supabase.from('clients').insert(cls);
-          if (cError) throw cError;
-
-          alert("✅ SUCCÈS : Données injectées ! L'application va redémarrer.");
-          window.location.reload(); 
+          alert("✅ Données locales sauvegardées sur le Cloud avec succès !");
       } catch (e: any) {
-          console.error("Erreur Seed:", e);
+          console.error("Sync Error", e);
           let msg = e.message || JSON.stringify(e);
-          
           if (msg.includes("row-level security") || e.code === "42501") {
-              alert(
-                `⛔️ BLOCAGE DE SÉCURITÉ (RLS)\n\n` +
-                `Supabase refuse l'écriture. Vous devez désactiver la sécurité RLS pour ce prototype.\n\n` +
-                `1. Allez dans Supabase > SQL Editor\n` +
-                `2. Copiez et exécutez :\n` +
-                `ALTER TABLE products DISABLE ROW LEVEL SECURITY;\n` +
-                `ALTER TABLE clients DISABLE ROW LEVEL SECURITY;\n` +
-                `(Faites pareil pour employees, transactions...)`
-              );
+            alert(
+              `⛔️ BLOCAGE DE SÉCURITÉ (RLS)\n\n` +
+              `Supabase refuse l'écriture. Vous devez désactiver la sécurité RLS pour ce prototype.`
+            );
           } else {
-              alert(`⚠️ Erreur d'initialisation : ${msg}`);
+              alert(`⚠️ Erreur sauvegarde : ${msg}`);
           }
       }
   };
@@ -777,7 +806,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateEmployee,
         deleteEmployee,
         notifications,
-        seedDatabase
+        syncToCloud
     }}>
       {children}
     </AppContext.Provider>

@@ -134,5 +134,5 @@ export interface AppContextType extends AppState {
   notifications: AppNotification[];
   
   // Database Helper
-  seedDatabase?: () => Promise<void>;
+  syncToCloud?: () => Promise<void>;
 }
